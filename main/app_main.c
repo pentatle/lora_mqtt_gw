@@ -27,6 +27,10 @@
 #include "freertos/task.h"
 #include "lora.h"
 
+uint16_t send_packet_count = 0;
+uint16_t receive_packet_count = 0;
+uint16_t error_count = 0;
+uint16_t cycle_count = 0;
 
 
 #define USE_PROPERTY_ARR_SIZE   sizeof(user_property_arr)/sizeof(esp_mqtt5_user_property_item_t)
@@ -331,8 +335,15 @@ void task_lora_gateway(void *pvParameters) {
         }
         // -------------------------------------------------------End request data phase-------------------------------------------------------
         out_nodes_write();
+        if (receive_packet_count)
+        {
+            ESP_LOGW(TAG, "Cycle %d ---------- Error receive paket rate = %.2f ------------- receive_packet_count = %d", cycle_count,(float) error_count/receive_packet_count,receive_packet_count);
+        }
+        else{
+            ESP_LOGW(TAG, "Cycle %d ---------- Error receive paket rate = NaN ------------- receive_packet_count = %d", cycle_count, receive_packet_count );
+        }
         send_telemetry_data();
-        
+        cycle_count++;
         vTaskDelayUntil(&xLastWakeTime, CYCLE_MS / portTICK_PERIOD_MS);
     }
 }
