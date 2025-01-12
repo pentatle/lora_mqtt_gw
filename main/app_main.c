@@ -166,7 +166,7 @@ static int send_with_ack(const char *message, uint8_t expected_ack_id) {
 
     while (retries <= MAX_RETRIES) {
         lora_send_packet((uint8_t *)message, strlen(message));
-        return 1;//test----------------------------------------------
+        // return 1;//test----------------------------------------------
         TickType_t start_wait = xTaskGetTickCount();
         while ((xTaskGetTickCount() - start_wait) < pdMS_TO_TICKS(ACK_LISTEN_TIMEOUT_MS)) {
             lora_receive();
@@ -265,6 +265,7 @@ void task_lora_gateway(void *pvParameters) {
                 // ESP_LOGI(TAG, "Listening for assign packets...");
                 lora_receive();
                 if (lora_received()) {
+                    receive_packet_count++;
                     int rxLen = lora_receive_packet(buf, sizeof(buf));
                     buf[rxLen] = '\0'; // Null-terminate for safe string handling
                     ESP_LOGI(TAG, "Received: %s", buf);
@@ -273,10 +274,13 @@ void task_lora_gateway(void *pvParameters) {
                     uint8_t node_id;
                     float latitude, longitude, t = -1, d = -1;
                     if (sscanf((char *)buf, "%hhd %f %f", &node_id, &latitude, &longitude) >= 3) {
-                        // send_ack(node_id);
+                        send_ack(node_id);
                         add_node(node_id, latitude, longitude, t, d);
                         send_accept_packet(node_id);
                         break;
+                    }
+                    else{
+                        error_count++;
                     }
                 }
                 
@@ -307,6 +311,7 @@ void task_lora_gateway(void *pvParameters) {
                 // ESP_LOGI(TAG, "Listening for data packets...");
                 lora_receive();
                 if (lora_received()) {
+                    receive_packet_count++;
                     int rxLen = lora_receive_packet(buf, sizeof(buf));
                     buf[rxLen] = '\0'; // Null-terminate for safe string handling
                     if (sscanf((char *)buf, "%hhu %f %f", &node_id, &t, &d) == 3) {
@@ -316,9 +321,12 @@ void task_lora_gateway(void *pvParameters) {
                             data_received = 1;
                             ESP_LOGI(TAG, "Data received from node %d: Temp=%.1f, Humidity=%.1f", node_id, t, d);
                         
-                            // send_ack(node_id);
+                            send_ack(node_id);
                             break;
                         }                                              
+                    }
+                    else{
+                        error_count++;
                     }
                 }
                 vTaskDelay(10); // Avoid WatchDog alerts
