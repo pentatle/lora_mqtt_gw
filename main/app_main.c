@@ -120,7 +120,7 @@ static void add_node(uint8_t id, float latitude, float longitude, float t, float
             nodes[i].t = t;
             nodes[i].d = d;
             nodes[i].last_seen = xTaskGetTickCount();
-            ESP_LOGI(TAG, "Node %d updated. Lat: %.1f, Lon: %.1f, Temp: %.1f, Humidity: %.1f", id, latitude, longitude, t, d);
+            ESP_LOGI(TAG, "Node %d updated. Lat: %.5f, Lon: %.5f, Temp: %.1f, Humidity: %.1f", id, latitude, longitude, t, d);
             return;
         }
     }
@@ -376,12 +376,16 @@ void send_telemetry_data() {
 
     // Add the field to json
     for(int i=0; i<node_count;i++){
-        char t_key[32], d_key[32],node_key[32];
+        char t_key[16], d_key[16],node_key[8],x_key[4],y_key[4];
         snprintf(t_key,sizeof(t_key),"Temperature%d",nodes[i].id);
         snprintf(d_key,sizeof(d_key),"Humidity%d",nodes[i].id);
         snprintf(node_key, sizeof(node_key), "Node%d", nodes[i].id);
+        snprintf(x_key, sizeof(node_key), "X%d", nodes[i].id);
+        snprintf(y_key, sizeof(node_key), "Y%d", nodes[i].id);
         cJSON_AddNumberToObject(root,t_key, nodes[i].t);
         cJSON_AddNumberToObject(root, d_key, nodes[i].d);
+        cJSON_AddNumberToObject(root, x_key, nodes[i].latitude);
+        cJSON_AddNumberToObject(root, y_key, nodes[i].longitude);
         if (nodes[i].t < T_min || nodes[i].t > T_max || nodes[i].d < H_min || nodes[i].d > H_max){
             cJSON_AddStringToObject(root, node_key, "Warning");
         }
@@ -390,7 +394,7 @@ void send_telemetry_data() {
         }
     }
     for(int i=0; i<out_node_count;i++){
-        char out_node_key[32];
+        char out_node_key[8];
         snprintf(out_node_key, sizeof(out_node_key), "Node%d", out_nodes[i].id);
         cJSON_AddStringToObject(root, out_node_key, "Out");
         ESP_LOGE(TAG, "Node %d is out of network", out_nodes[i].id);
@@ -639,6 +643,8 @@ void app_main(void)
     lora_set_coding_rate(1);
     lora_set_bandwidth(7);
     lora_set_spreading_factor(7);
+    ESP_LOGW(TAG, "LoRa parameters spreading_factor set: %d", lora_get_spreading_factor());
+
 
     xTaskCreate(&task_lora_gateway, "LoRa_Gateway", 1024 * 4, NULL, 5, NULL);
 
